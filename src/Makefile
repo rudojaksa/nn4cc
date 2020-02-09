@@ -68,7 +68,7 @@ $(OBJ): %.o: %.c Makefile | VERSION.h
 VERSION.h: $(SRC) VERSION Makefile ../UTIL/mkversionh
 	mkversionh > $@
 
-help.c: help.txt CONFIG.h sugar.c sched.c
+help.c: help.txt CONFIG.h VERSION.h sugar.c sched.c
 	help2c $< > $@
 
 # TODO: nntrain should be installed as a symbolic link to nntrain in this directory

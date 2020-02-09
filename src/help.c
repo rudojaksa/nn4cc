@@ -69,5 +69,5 @@ char *Help = "\n"
 "    [37merplot -h[0m\n"
 "\n"
 "[36mVERSION[0m\n"
-"    nn4cc-0.1v (c) R.Jaksa 2019, GPLv3 [90m(built 20200210.0029 on brix)[0m\n"
+"    nn4cc-0.2 (c) R.Jaksa 2019, GPLv3\n"
 "\n";

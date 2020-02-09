@@ -68,5 +68,5 @@ Training output is saved into the ./Log/ directory.
 erplot -h
 
 ### VERSION
-nn4cc-0.1v (c) R.Jaksa 2019, GPLv3 (built 20200210.0029 on brix)
+nn4cc-0.2 (c) R.Jaksa 2019, GPLv3
 
