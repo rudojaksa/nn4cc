@@ -1,1 +1,0 @@
-help.o: help.c
