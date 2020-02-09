@@ -1,0 +1,56 @@
+#!/usr/bin/perl
+
+# Makefile usage:
+#
+# %.o: %.c | VERSION.h
+#	gcc -c -o $@ $<
+#
+# VERSION.h: $(SRC)
+#	mkversionh | grep -v MKDIR > $@.bkp; mv $@.bkp $@
+
+$CK_="\033[90m"; # color black
+$CD_="\033[0m";  # color default
+
+$PACKAGE	= `getversion -pkg`;
+$VERSION	= `getversion -ver`;
+$COPYLEFT	= `getversion -cpy`;
+$SUBVERSION	= `mkdist -sub`;
+$MKDATE		= `date '+%Y%m%d.%H%M'`;
+$MKHOST		= `hostname`;
+$MKDIR		= `pwd | sed 's:$ENV{HOME}:~:'`;
+
+if(-f "/proc/cpuinfo") {
+  $MKCPU	= `cat /proc/cpuinfo | grep 'model name' | head -1`; }
+else {
+  $MKCPU	= `sysctl -a | grep machdep.cpu.brand_string`; }
+
+$PACKAGE	=~ s/\n//g;
+$VERSION	=~ s/\n//g;
+$COPYLEFT	=~ s/\n//g;
+$SUBVERSION	=~ s/\n//g;
+$MKDATE		=~ s/\n//g;
+$MKHOST		=~ s/\n//g;
+$MKDIR		=~ s/\n//g;
+$MKCPU		=~ s/\n//g;
+
+$MKCPU =~ s/\(R\)//g;
+$MKCPU =~ s/\(TM\)//g;
+$MKCPU =~ s/ CPU / /g;
+$MKCPU =~ s/^[a-z \t]+:\h*//g;
+$MKCPU =~ s/@ ([0-9.]+GHz)/($1)/g;
+
+$s .= "# ifndef VERSION_H\n# define VERSION_H\n\n";
+$s .= "# define PACKAGE \"$PACKAGE\"\n";
+$s .= "# define VERSION \"$VERSION\"\n";
+$s .= "# define SUBVERSION \"$SUBVERSION\"\n";
+$s .= "# define COPYLEFT \"$COPYLEFT\"\n";
+$s .= "# define MKDATE \"$MKDATE\"\n";
+$s .= "# define MKHOST \"$MKHOST\"\n";
+$s .= "# define MKDIR \"$MKDIR\"\n";
+$s .= "# define MKCPU \"$MKCPU\"\n";
+$s .= "\n# endif\n";
+
+# print STDERR "${CK_}create VERSION.h for $PACKAGE-$VERSION.$SUBVERSION$CD_\n";
+
+print $s;
+

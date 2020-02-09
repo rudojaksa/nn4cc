@@ -1,0 +1,25 @@
+
+We cannot use pure inline functions in the .h files,
+because they disable -O0 and -Os optimizations.
+
+
+  filename   intention
+ ---------------------------------------------------------------------------------
+       log   what to log (which variables)
+     sched   when to log (in which training step)
+     queue   how  to log (which evaluation in which thread to which output row)
+
+// Log/20190828.1150
+// Log/20190828.1150/journal.log
+// Log/20190828.1150/er[train|test|test1|test2].log  # pat time rmse mse1..mse24
+// Log/20190828.1150/weights.log  # pat w1..w12963
+// Log/20190828.1150/credits.log  # pat ci1..ci132
+// Log/20190828.1150/out-<filename>/00002122.dat  # pat y1 d1 y2 d2 y3 d3 ...
+
+// dat files:
+// 1. prolog
+// 2. header
+// 3. data
+// comments
+// groups by whitespace
+

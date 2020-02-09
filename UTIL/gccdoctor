@@ -1,0 +1,161 @@
+#!/usr/bin/perl
+
+$PACKAGE="gccdoctor";
+$VERSION="0.1";
+$COPYLEFT="(c) R.Jaksa 2019, GPLv3";
+
+$CR_="\033[31m"; # color red
+$CG_="\033[32m"; # color green
+$CM_="\033[35m"; # color magenta
+$CC_="\033[36m"; # color cyan
+$CW_="\033[37m"; # color white
+$CK_="\033[90m"; # color black
+$CD_="\033[0m";  # color default
+
+# ----------------------------------- CMDLINE ECHO
+
+for($i=0;$i<=$#ARGV;$i++) {
+  next if $ARGV[$i] eq "";
+  my $s = $ARGV[$i];
+  if($ARGV[$i] eq "-o" and $i<$#ARGV) {
+    my $color = $CC_;
+    $color = $CK_ if $ARGV[$i+1] =~ /\.o/;
+    $s = "$color$ARGV[$i] $ARGV[$i+1]$CD_";
+    $i++; }
+
+  $s =~ s/^(.*\.c)$/$CG_$1$CD_/;
+  $s =~ s/^(.*\.o)$/$CK_$1$CD_/;
+  $s =~ s/^-c$/$CK_-c$CD_/;
+  $s =~ s/^(-std=.*)$/$CK_$1$CD_/;
+  $s =~ s/^(-W.*)$/$CK_$1$CD_/;
+  $s =~ s/^(-M.*)$/$CK_$1$CD_/;
+
+  push @echo,$s; }
+
+print "gcc @echo\n";
+
+# --------------------------------------- CALL GCC
+
+our $PID;
+unless($PID = open(GCC,"-|")) {
+  open STDERR,">&STDOUT";
+  exec "gcc","-fdiagnostics-color=always",@ARGV;
+  die "gccdoctor: gcc call failed: $!"; }
+waitpid($PID, 0);
+
+# ------------------------------ GCC OUTPUT PARSER
+our @LINE; # lines log
+
+# inar(\@a,$s) - check whether the string is in the array
+sub inar {
+  my $a=$_[0]; # array ref
+  my $s=$_[1]; # string
+  foreach(@{$a}) { return 1 if $_ eq $s; }
+  return 0; }
+
+# print gcc message line
+sub prln {
+  my $color = $_[0];
+  my  $line = $_[1];
+  return if inar \@LINE,$line;
+  push @LINE,$line;
+  print "    $color$line$CD_\n"; }
+
+while (<GCC>) {
+
+  # color and plain versions
+  my $c = $_; $c =~ s/\n$//;	# color
+  my $p = $c;			# plain
+  $p =~ s/\e\[K//g;
+  $p =~ s/\e\[[0-9;]*m//g;
+
+  # error:
+  if($p =~ / error: /) {
+    $p =~ s/:[0-9]+: error: +/ /;
+    prln $CR_,$p;
+    goto NEXT; }
+
+  # warning:
+  if($p =~ / warning: /) {
+    $p =~ s/:[0-9]+: warning: +/ /;
+    prln $CM_,$p;
+    goto NEXT; }
+
+  # optimized:
+  if($p =~ / optimized: /) {
+    $p =~ s/:[0-9]+: optimized: +/ /;
+    $p =~ s/ \(header execution count [0-9]+\)//;
+    $p =~ s/ vectorized / ${CW_}vectorized$CK_ /;
+    $p =~ s/Inlining /${CW_}Inlining$CK_ /;
+    prln $CK_,$p;
+    goto NEXT; }
+  if($p =~ /^optimized: /) {
+    $p =~ s/^optimized: +//;
+    $p =~ s/ \(header execution count [0-9]+\)//;
+    $p =~ s/ vectorized / ${CW_}vectorized$CK_ /;
+    $p =~ s/Inlined /${CW_}Inlined$CK_ /;
+    prln $CK_,$p;
+    goto NEXT; }
+
+  # missed:
+  if($p =~ / missed: /) {
+    $p =~ s/:[0-9]+: missed: +/ /;
+    $p =~ s/^([^:]+:[0-9]+) /${CM_}$1$CK_ /;
+    prln $CK_,$p;
+    goto NEXT; }
+
+  # note:
+  if($p =~ / note: /) {
+    $p =~ s/:[0-9]+: note: +/ /;
+    $p =~ s/^([^:]+:[0-9]+) /${CM_}$1$CK_ /;
+    prln $CK_,$p;
+    goto NEXT; }
+
+  # skip BW below-the-line highlights
+  if($p =~ /^[ \|^~]*$/) {
+    goto NEXT; }
+
+  # "In function"
+  if($p =~ /: In function '[a-zA-Z0-9_]+':$/) {
+    prln $CK_,$p;
+    goto NEXT; }
+
+  # "At top level"
+  if($p =~ /: At top level:$/) {
+    $p =~ s/:$//;
+    prln $CK_,$p;
+    goto NEXT; }
+
+  # "In file included"
+  if($p =~ /^In file included from .*:[0-9]+:$/) {
+    $p =~ s/:$//;
+    prln $CK_,$p;
+    goto NEXT; }
+
+  if($p =~ /^Unit growth for small function inlining:/) {
+    $p =~ s/:$//;
+    prln $CK_,$p;
+    goto NEXT; }
+
+  if($p =~ /^Inlined [0-9]+ calls, eliminated [0-9]+ functions/) {
+    $p =~ s/:$//;
+    prln $CK_,$p;
+    goto NEXT; }
+
+  # color highlighted gcc suggestions and under-line highlighting
+  if($p =~ /^( *[0-9]* \| )/) {
+    my $rep = $1;
+    $rep =~ tr/[0-9\|]/ /;
+    $c =~ s/^ *[0-9]* \| /$rep/;
+    $c =~ s/(\/\/ [a-zA-Z0-9\,\.\:].*?)$/$CK_$1$CD_/;
+    print "    $c\n";
+    goto NEXT; }
+
+  # everything else
+  prln $CR_,$c;
+  #prln $CR_,$p;
+
+ NEXT:; }
+close(GCC);
+
+# ------------------------------------------------

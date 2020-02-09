@@ -1,0 +1,134 @@
+\documentclass{article}
+\usepackage[a4paper,margin=2cm,bottom=3cm,landscape]{geometry}
+%%\documentclass[11pt,a4paper]{letter}
+\usepackage{url}
+%\usepackage{multirow}
+\usepackage[font={small,sc},labelsep=endash]{caption}
+%%\usepackage{ulem}
+%%\usepackage{titling}
+%\usepackage{droid}
+\usepackage{fixltx2e}
+
+\usepackage[T1]{fontenc}
+\usepackage[charter]{mathdesign}
+\usepackage[scaled=0.9]{DejaVuSerifCondensed}
+\usepackage[scaled=0.9]{DejaVuSerif}
+
+%\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{amsmath} % underset
+\usepackage{relsize} % mathlarger
+
+\usepackage{array}
+\newcolumntype{R}[1]{>{\raggedright\arraybackslash}m{#1}}
+\newcolumntype{L}[1]{>{\raggedleft\arraybackslash}m{#1}}
+\newcolumntype{M}[1]{>{\centering\arraybackslash}m{#1}}
+
+%%\textwidth 16.0cm
+%%\textheight 24.5cm
+%%\advance\hoffset by -2mm
+%%\advance\voffset by -20mm
+%\parindent 0pt
+
+\newcommand{\sci}[3]{#1{\rm.}#2$\times$10\textsuperscript{#3}}
+\newcommand{\scx}[2]{#1$\times$10\textsuperscript{#2}}
+
+% ---------------------------------------------------------------------------------- HEADINGS
+
+\usepackage{lastpage}
+\usepackage{fancyhdr}
+\fancypagestyle{plain}{
+  \fancyhf{}
+  \renewcommand{\headrulewidth}{0pt}
+  \fancyfoot[L]{\thepage/\pageref{LastPage}}
+  \fancyfoot[R]{\it R. Jak\v sa 2019}}
+\pagestyle{plain}
+
+% --------------------------------------------------------------------------------- OPERATORS
+
+\newcommand*{\md}[3]{{\mathop{\mathlarger{\rm Md}}_{#1=#2}^#3}}
+\newcommand*{\maxmin}[4]{{\raisebox{2pt}{$\mathop{\mathlarger{\mathlarger{\rm Max}}}\limits_{{\raisebox{-1pt}{$\scriptstyle #2 \in$}}{\underset{#1\%}{\rm Min}_{\raisebox{2pt}{$\scriptscriptstyle \kern 1pt #3$}}^{\kern 1pt #4}}}$}}}
+\newcommand*{\minmax}[4]{{\raisebox{2pt}{$\mathop{\mathlarger{\mathlarger{\rm Min}}}\limits_{{\raisebox{-1pt}{$\scriptstyle #2 \in$}}{\underset{#1\%}{\rm Max}_{\raisebox{2pt}{$\scriptscriptstyle \kern 1pt #3$}}^{\kern 1pt #4}}}$}}}
+
+% ----------------------------------------------------------------------------- WHOLE DATASET
+
+\begin{document}
+
+{\Large\bf Whole Dataset Evaluation:}
+\bigskip
+
+\begin{center}
+\renewcommand{\arraystretch}{1.0}
+\begin{tabular}{M{4em}M{10em}|M{20em}|M{3em}|M{20em}}
+ {\tt code} & name & rule & native units & notes \\\hline\hline
+
+ {\tt amae} & Average MAE & $$ {\rm MAE_{avg}} = \frac{1}{PN} \sum_{p=1}^P \sum_{i=1}^N |d_i^p-y_i^p| $$ & yes & Average Mean Absolute Error over~all~outputs~and~all~patterns in~native units. \\
+
+ {\tt aed} & Average ED & $$ {\rm ED_{avg}} = \frac{1}{P} \sum_{p=1}^P \sqrt{ \sum_{i=1}^N (d_i^p-y_i^p)^2 } $$ & yes & Average~Euclidean~Distance over~all~patterns in~native units. \\
+
+ {\tt amse} & Average MSE & $$ {\rm MSE_{avg}} = \frac{1}{PN} \sum_{p=1}^P \sum_{i=1}^N (d_i^p-y_i^p)^2 $$ & no & \\
+
+ {\tt armse} & Average RMSE & $$ {\rm RMSE_{avg}} = \frac{1}{P} \sum_{p=1}^P \sqrt{ \frac{1}{N} \sum_{i=1}^N (d_i^p-y_i^p)^2 } $$ & no & \\\hline
+
+ {\tt mmae} & Median MAE & $$ {\rm MAE_{med}} =  \md{p}{1}{P} \left( \frac{1}{N} \sum_{i=1}^N |d_i^p-y_i^p| \right) $$ & yes & MAE error of the average pattern in~native~units. \\
+
+ {\tt t10mae} & Top 10\% MAE & $$ {\rm MAE_{top10}} =  \maxmin{10}{p}{1}{P} \left( \frac{1}{N} \sum_{i=1}^N |d_i^p-y_i^p| \right) $$ & yes & Error of the last from the top 10\% in~native~units. \\
+
+\end{tabular}
+\end{center}
+\newpage
+
+% ---------------------------------------------------------------------------- SINGLE PATTERN
+
+{\Large\bf Evaluation of Single Pattern:}
+\bigskip
+\bigskip
+
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{M{3em}M{15em}|M{16em}|M{3em}|M{22em}}
+ {\tt code} & name & rule & native units & notes \\\hline\hline
+
+ {\tt mae} & Mean Absolute Error & $$ {\rm MAE} = \frac{1}{N} \sum_{i=1}^N |d_i-y_i| $$ & yes & Average output error in~native units,  Manhattan distance without the $1/N$~averaging. \\
+
+ {\tt ed} & Euclidean Distance & $$ {\rm ED} = \sqrt{ \sum_{i=1}^N (d_i-y_i)^2 } $$ & yes & Euclidean Distance between~desired~and~actual~outputs in~native units. \\ 
+
+ {\tt mse} & Mean Square Error & $$ {\rm MSE} = \frac{1}{N} \sum_{i=1}^N (d_i-y_i)^2 $$ & no & Error function for LMS algorithms. \\
+
+ {\tt rmse} & Root Mean Square Error & $$ {\rm RMSE} = \sqrt{ \frac{1}{N} \sum_{i=1}^N (d_i-y_i)^2 } $$ & no & \\
+
+\end{tabular}
+\end{center}
+\newpage
+
+% ----------------------------------------------------------------------------------- SYMBOLS
+
+{\Large\bf Symbols:}
+\bigskip
+\bigskip
+\bigskip
+
+\begin{center}
+\renewcommand{\arraystretch}{0.1}
+\begin{tabular}{M{12em}R{38em}}
+
+  $$ d_i^p $$ & Desired value of $i$-th output from the $p$-th pattern. \\
+
+  $$ y_i^p $$ & Actual value of $i$-th output from the $p$-th pattern. \\
+
+  $$ N $$ & Number of outputs. \\
+
+  $$ P $$ & Number of patterns in the dataset. \\
+  
+  $$ \md{p}{1}{P} \bigg( f(y^p) \bigg) $$ & Median value of $f$ for all values of $y^p$ between $p=1$ to $P$. \\
+
+  $$ \maxmin{10}{p}{1}{P} \bigg( f(y^p) \bigg) $$ & Maximum from minimal $10\%$ of $f$ for all $y^p$ between $p=1$ to $P$. \\
+
+\end{tabular}
+\end{center}
+\newpage
+
+\end{document}
+
+% -------------------------------------------------------------------------------------------
+

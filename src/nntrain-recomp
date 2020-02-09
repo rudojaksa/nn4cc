@@ -1,0 +1,251 @@
+#!/usr/bin/perl
+# TODO! parse config.h topology too
+# --------------------------------------------------------------------------------- HELP
+$HELP=<<EOF;
+
+NAME
+    nntrain-recomp - recompile skript for nn4cc
+
+USAGE
+    nntrain-recomp [OPTIONS] OLD_TOPOLOGY NEW_TOPOLOGY RECOMP_DIR
+
+DESCRIPTION
+    The CC(nntrain-recomp) is called by the CC(nntrain) when asked to change
+    the topology, to recompile itself.  It will rewrite  the CD(CONFIG.h)
+    in the RECOMP_DIR (if needed for the NEW_TOPOLOGY) and will
+    recompile the CC(nntrain).
+
+OPTIONS
+    -h  This help.
+    -q  Quiet run.
+
+RETURN
+     CC(1)  Did nothing, the same topology or error.
+     CC(0)  Recompiled.
+
+SEE ALSO
+    CW(nntrain -h)
+
+VERSION
+    nntrain-recomp (c) R.Jaksa 2019, GPLv3
+
+EOF
+
+$CR_="\033[31m"; # color red
+$CG_="\033[32m"; # color green
+$CM_="\033[35m"; # color magenta
+$CC_="\033[36m"; # color cyan
+$CW_="\033[37m"; # color white
+$CK_="\033[90m"; # color black
+$CD_="\033[0m";  # color default
+
+sub printhelp {
+  my $help = $_[0];
+  $help =~ s/(\n\#.*)*\n/\n/g;
+  my %REX; my $i=0; $REX{$i++} = $3 while $help =~ s/([^A-Z0-9])(C[CWD])\((.+?)\)/${1}__c$2${i}__/;
+  $help =~ s/(\n[ ]*)(-[a-zA-Z0-9]+(\[?[ =][A-Z]{2,}(x[A-Z]{2,})?\]?)?)([ \t])/$1$CC_$2$CD_$5/g;
+  $help =~ s/\[([+-])?([A-Z]+)\]/\[$1$CC_$2$CD_\]/g;
+  $help =~ s/(\n|[ \t])(([A-Z_\/-]+[ ]?){4,})/$1$CC_$2$CD_/g;
+  $help =~ s/__cCC([0-9]+)__/$CC_$REX{$1}$CD_/g;
+  $help =~ s/__cCW([0-9]+)__/$CW_$REX{$1}$CD_/g;
+  $help =~ s/__cCD([0-9]+)__/$CD_$REX{$1}$CD_/g;
+  print $help; }
+
+# ------------------------------------------------------------------------------- ARGV
+foreach(@ARGV) { if($_ eq "-h") { printhelp($HELP); exit 0; }}
+foreach(@ARGV) { if($_ eq "-q") { $QUIET=1; $_=""; last; }}
+
+# 1st: old topology
+our $OLD0;
+for($i=0;$i<=$#ARGV;$i++) {
+  next if $ARGV[$i] eq "";
+  $OLD0 = $ARGV[$i];
+  $ARGV[$i] = "";
+  last; }
+
+# 2nd: new topology
+our $NEW0;
+for($i=0;$i<=$#ARGV;$i++) {
+  next if $ARGV[$i] eq "";
+  $NEW0 = $ARGV[$i];
+  $ARGV[$i] = "";
+  last; }
+
+# 3rd: recompile directory
+our $DIR;
+for($i=0;$i<=$#ARGV;$i++) {
+  next if $ARGV[$i] eq "";
+  next if not -d $ARGV[$i];
+  $DIR = $ARGV[$i];
+  $ARGV[$i] = "";
+  last; }
+
+if(not defined $OLD0 or not defined $NEW0) {
+  printhelp($HELP); exit 0; }
+
+$DIR = "." if not defined $DIR;
+
+# ------------------------------------------------------------------------------------
+use POSIX qw(strftime);
+our $KLEN = 15;
+
+# return mtime of file
+sub getmtime {
+  my $file=$_[0];
+  my $t=0;
+  if(-e $file) {
+    $t=(stat($file))[9]; }
+  return $t; }
+
+# return mtime formatted
+sub strmtime {
+  my $t = getmtime $_[0];
+  return strftime "%Y%m%e.%H%M%S",localtime($t); }
+
+sub error {
+  printf STDERR "$CR_%${KLEN}s: %s$CD_\n","error",$_[0];
+  exit 1; }
+
+sub verbose {
+  return if $QUIET;
+  printf STDERR "%${KLEN}s: %s\n",$_[0],$_[1]; }
+
+# write file
+sub writefile {
+  my $file=$_[0];
+  my $s=$_[1];
+  open(O,">$file") or error "can't create file $file ($!)";
+  print O $s;
+  close(O); }
+
+# ---------------------------------------------------------------- CHECK SRC DIRECTORY
+our $MAKEFILE = "$DIR/Makefile";
+
+if(not -f $MAKEFILE) {
+  error("source directory $DIR not available"); }
+
+# ----------------------------------------------------------------------------- PARSER
+
+# parse topogram into array
+sub parse {
+  my @from = split /-/,$_[0];
+
+  # blocks (layers) identifiers
+  my @ret;
+  for(my $i=0; $i<=$#from; $i++) {
+
+  # numbers of neurons
+  if($from[$i] =~ /[0-9]+/) {
+    $ret[$i] = $&; }
+  else {
+    $ret[$i] = 0; }
+
+  # activation functions
+  if($i == 0) {}
+  elsif($from[$i] =~ /(sigm)|(relu)|(lrelu)/) {
+    $ret[$i] .= $&; }
+  elsif($from[$i] =~ /[0-9]s/) {
+    $ret[$i] .= "sigm"; }
+  elsif($from[$i] =~ /[0-9]r/) {
+    $ret[$i] .= "relu"; }
+  elsif($from[$i] =~ /[0-9]l/) {
+    $ret[$i] .= "lrelu"; }
+  elsif($i == $#from) {
+    $ret[$i] .= "sigm"; }
+  else {
+    $ret[$i] .= "relu"; }}
+
+  return @ret; }
+
+# create topogram from the array
+sub topogram {
+  my $s = "$_[0]";
+  for(my $i=1; $i<=$#_; $i++) {
+    $s .= "-$_[$i]"; }
+  return $s; }
+
+# from the array get numbers of neurons
+sub getnum {
+  my @nx;
+  for(my $i=0; $i<=$#_; $i++) {
+    @nx[$i] = 0;
+    @nx[$i] = $1 if $_[$i] =~ /^([0-9]+)/; }
+  return @nx; }
+
+# activation functions
+sub getfnc {
+  my @fx;
+  for(my $i=0; $i<=$#_; $i++) {
+    @fx[$i] = "";
+    @fx[$i] = $1 if $_[$i] =~ /([a-z]+)$/; }
+  return @fx; }
+
+# ----------------------------------------------------------------- PARSE NEW TOPOLOGY
+
+our @OLD = parse $OLD0;
+our @NEW = parse $NEW0;
+
+our $OLD = topogram @OLD;
+our $NEW = topogram @NEW;
+
+# no recompile needed
+if($NEW eq $OLD) {
+  # verbose("nntrain reuse","no recompile needed");
+  exit 1; }
+
+# number of neurons & functions
+our @OLDN = getnum @OLD;
+our @NEWN = getnum @NEW;
+our @OLDF = getfnc @OLD;
+our @NEWF = getfnc @NEW;
+our $OLDS = topogram @OLDN;
+our $NEWS = topogram @NEWN;
+
+# verbose
+print STDERR "\n" if not $QUIET;
+verbose "old topology","$CK_$OLDS ($OLD)$CD_";
+verbose "new topology","$NEWS $CK_($NEW)$CD_";
+# verbose "by request","$CK_$NEW$CD_";
+
+# -------------------------------------------------------------- GENERATE NEW CONFIG.h
+my $configh;
+
+$configh .= "# ifndef CONFIG_H\n";
+$configh .= "# define CONFIG_H\n";
+$configh .= "\n";
+$configh .= sprintf "# define Nin %4d\t// no. of inputs\n",$NEWN[0];
+for(my $i=1; $i<$#NEWN; $i++) {
+  $configh .= sprintf "# define Nh$i %4d\t// hidden layer $i\n",$NEWN[$i]; }
+$configh .= sprintf "# define Nou %4d\t// no. of outputs\n",$NEWN[$#NEWN];
+$configh .= "\n";
+for(my $i=1; $i<$#NEWF; $i++) {
+  $configh .= sprintf "# define Fh$i %s\n",$NEWF[$i]; }
+$configh .= sprintf "# define Fou %s\n",$NEWF[$#NEWF];
+$configh .= "\n";
+$configh .= sprintf "# include \"mlp%d.h\"\n",$#NEWN;
+$configh .= "\n";
+$configh .= "# endif\n";
+
+# ----------------------------------------------------------------------------- TMPDIR
+
+# the data from Log/tmp should be copied into immediate next Log
+our $TMPDIR = "Log/tmp";
+system "mkdir -p $TMPDIR" if not -d $TMPDIR;
+
+# ---------------------------------------------------------------- CREATE NEW CONFIG.h
+our $CONFIGH = "$DIR/CONFIG.h";
+
+if(not $configh eq `cat $CONFIGH`) {
+  verbose "write","$CG_$CONFIGH$CD_";
+  writefile $CONFIGH,$configh; }
+
+# -------------------------------------------------------------------------- RECOMPILE
+
+my $cmd = "make -C $DIR";
+$cmd .= " >> $TMPDIR/gcc.log" if $QUIET;
+
+verbose "will recompile","$CM_$cmd$CD_\n";
+
+exit 130 if system $cmd; # propagate ctrl-c or error as exit 130
+
+# ------------------------------------------------------------------------------------

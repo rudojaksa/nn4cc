@@ -1,0 +1,2 @@
+ * full logging of performance stats
+ * switch to remove 1st 10 seconds from mcups statistics

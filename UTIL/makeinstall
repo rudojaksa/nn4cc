@@ -1,0 +1,674 @@
+#!/usr/bin/perl
+
+   $PACKAGE = "makeinstall";
+   $VERSION = "0.9";
+$SUBVERSION = "none";
+  $COPYLEFT = "(c) R.Jaksa 2009,2019 GPLv3";
+
+   $PKGNAME = "makeinstall-0.9";
+    $PKGMSG = "makeinstall-0.9 (c) R.Jaksa 2009,2019 GPLv3";
+  $PKGBUILT = "built 20191213.2324 on brix";
+   $PKGLONG = "makeinstall-0.9 (c) R.Jaksa 2009,2019 GPLv3 (built 20191213.2324 on brix)";
+
+  $MAKEDATE = "20191213.2324";
+  $MAKEHOST = "brix";
+   $MAKEDIR = "/work/jaksa/prj/makeutils/makeinstall";
+   $MAKECPU = "Intel Core i5-6200U (2.30GHz)";
+# ------------------------------------------------------------------------------------ HELP
+
+sub printhelp {
+  my $help = $_[0];
+
+  # commented-out
+  $help =~ s/(\n\#.*)*\n/\n/g;
+
+  if($SUBVERSION ne "none") {
+    $BLT = " $CK_($PKGBUILT)$CD_"; }
+
+  $help .= "VERSION\n";
+  $help .= "    $PKGMSG$BLT\n\n";
+
+  # escaped bracket
+  $help =~ s/\\\)/___brc2___/g;
+
+  # CC(text)
+  my %REX; my $i=0; $REX{$i++} = $3 while $help =~ s/([^A-Z0-9])(C[CWRDK])\((.+?)\)/${1}__c$2${i}__/;
+
+  # TODO: use push array to avoid being overwritten later
+  $help =~ s/(\n[ ]*)(-[a-zA-Z0-9]+(\[?[ =][A-Z]{2,}(x[A-Z]{2,})?\]?)?)([ \t])/$1$CC_$2$CD_$5/g;
+
+  $help =~ s/\[([+-])?([A-Z]+)\]/\[$1$CC_$2$CD_\]/g;
+  $help =~ s/(\n|[ \t])(([A-Z_\/-]+[ ]?){4,})/$1$CC_$2$CD_/g;
+
+  # CC(text)
+  $help =~ s/__cCC([0-9]+)__/$CC_$REX{$1}$CD_/g;
+  $help =~ s/__cCW([0-9]+)__/$CW_$REX{$1}$CD_/g;
+  $help =~ s/__cCR([0-9]+)__/$CR_$REX{$1}$CD_/g;
+  $help =~ s/__cCK([0-9]+)__/$CK_$REX{$1}$CD_/g;
+  $help =~ s/__cCD([0-9]+)__/$CD_$REX{$1}$CD_/g;
+
+  # correct back
+  $help =~ s/___brc2___/)/g;
+
+  print $help; }
+
+# -----------------------------------------------------------------------------------------
+
+$HDRLEN=17;
+sub hspace { my $e;
+  for(my $i=0;$i<$HDRLEN-length($_[0]);$i++) { $e.=" "; }
+  return $e; }
+
+sub sprint  { print STDERR $_[0] if not $QUIET; }
+sub hprint  { print STDERR hspace($_[0]).$_[0].": " if not $QUIET; }
+sub dhprint { print STDERR $CM_.hspace($_[0]).$_[0].$CD_.": " if not $QUIET; }
+sub xprint  { print STDERR hspace($_[0]).$_[0].": $CG_".$_[1]."$CD_ $_[2]\n" if not $QUIET; }
+sub dprint  { print STDERR $CM_.hspace($_[0]).$_[0]."$CD_: $CG_".$_[1]."$CD_\n" if not $QUIET; }
+sub eprint  { print STDERR hspace("").": $CR_".$_[0]."$CD_ $_[1]\n"; }
+sub xprintnl {
+  return if $QUIET;
+  for(my $i=0;$i<$HDRLEN;$i++) { print STDERR " "; }
+  print STDERR ":\n"; }
+
+$CR_="\033[31m"; # color red
+$CG_="\033[32m"; # color green
+$CM_="\033[35m"; # color magenta
+$CC_="\033[36m"; # color cyan
+$CW_="\033[37m"; # color white
+$CK_="\033[90m"; # color black
+$CD_="\033[0m";  # color default
+
+# remove trailing nl from string
+sub nonl {
+  my $s = shift;
+  $s =~ s/\n$//;
+  return $s; }
+
+# return output from cmd without trailing newline and without stderr messaging
+sub fromcmd {
+  return nonl `$_[0] 2>/dev/null`; }
+
+# -----------------------------------------------------------------------------
+
+# inar(\@a,$s) - check whether the string is in the array
+sub inar {
+  my $a = $_[0]; # array ref
+  my $s = $_[1]; # string
+  for(@{$a}) { return 1 if $_ eq $s; }
+  return 0; }
+
+# ---------------------------------------------------------------- DIR TO ARRAY
+
+# @dir = dir2array(".");
+sub dir2array {
+  my $d = $_[0]; $d = "." if not $_[0];
+  if(not opendir(DIR,$d)) { eprint("Can't open directory $CD_$d$CR_ ($!)"); exit 1; }
+  my @dir = readdir(DIR);
+  closedir(DIR);
+  undef my @out;
+  for my $i (@dir) {
+    next if $i eq ".";
+    next if $i eq "..";
+    push @out,$i; }
+  return @out; }
+
+# ($dirs,$files) = dir2array_rec(".","/bin");
+# recursive search in /bin, returns paths relative to "/bin/."
+# $dirs and $files are references to arrays
+sub dir2array_rec {
+  my $dir = $_[0]; # directory to search in, relative to $pre
+  my $pre = $_[1]; $pre = "" if not $pre; # directory path
+  my @dir = dir2array("$pre/$dir");
+  undef my @dirs; undef my @files;
+  for my $i (@dir) {
+    my $f = "$pre/$dir/$i";
+    if(-f $f) { push @files,"$dir/$i"; }
+    elsif(-d $f) {
+      push @dirs ,"$dir/$i";
+      (my $d2,my $f2) = &dir2array_rec("$dir/$i",$pre);
+      for $j (@{$f2}) { push @files,$j; }
+      for $j (@{$d2}) { push @dirs ,$j; }}}
+  for $i (@dirs)  { $i =~ s/^\.\///; }
+  for $i (@files) { $i =~ s/^\.\///; }
+  return ([@dirs],[@files]); }
+
+# ---------------------------------------------------------------------- LOWLEV
+
+# return basename of file
+sub basename {
+  my $f = $_[0];
+  $f =~ s/^.*\///;
+  return $f; }
+
+sub cmd {
+  my $s = $_[0]; $s = $_[1] if $_[1];
+  my $msg = $_[0] if $_[1];
+  my $cc = $DUMMY ? $CK_ : $CC_;
+  xprint $msg,"$cc$s$CD_";
+  sprint $CW_;
+  system "$s" if not $DUMMY;
+  sprint $CD_; }
+
+sub makedir {
+  my $dir = $_[0]; $dir = $_[1] if $_[1];
+  my $msg = $_[0] if $_[1];
+  dprint "makedir","mkdir -p $dir" if $DEBUG;
+  cmd "$msg","mkdir -p $dir" if not -d $dir; }
+
+# --------------------------------------------------------------- COPY AND LINK
+
+# copy source to the destination point
+sub xcopy {
+  my $src = $_[0]; my $srcx = $src; $srcx = "\"$srcx\"" if $srcx =~ / /;
+  my $dst = $_[1];
+
+  my $dstdir = $dst; $dstdir =~ s/\/[^\/]*$//;
+  my $dstdirx = $dstdir; $dstdirx = "\"$dstdirx\"" if $dstdirx =~ / /;
+
+  makedir "install",$dstdirx;
+  dprint "xcopy","cp $srcx $dstdirx" if $DEBUG;
+  if(-f $dst) { return if not `diff -q \"$src\" \"$dst\"`; }
+  cmd "install","cp $srcx $dstdirx"; }
+
+# link dest. file to the point where the source is linked (source is a link)
+sub xlink {
+  my $src = $_[0];
+  my $dst = $_[1]; my $dstx = $dst; $dstx = "\"$dstx\"" if $dstx =~ / /;
+
+  my $dstdir = $dst; $dstdir =~ s/\/[^\/]*$//;
+  my $dstdirx = $dstdir; $dstdirx = "\"$dstdirx\"" if $dstdirx =~ / /;
+  my $srcl = readlink $src if -l $src;
+  my $srclx = $srcl; $srclx = "\"$srclx\"" if $srclx =~ / /;
+  my $dstl = readlink $dst if -l $dst;
+
+  makedir "install",$dstdirx;
+  dprint "xlink","ln -s $srclx $dstx" if $DEBUG;
+  if(not $dstl eq $srcl) {
+    cmd "install","rm $dstx" if -e $dst;
+    cmd "install","ln -s $srclx $dstx"; }}
+
+# xlink if file is link, xcopy if file is file
+sub xlncp {
+  my $src = $_[0];
+  my $dst = $_[1];
+  if(   -l $src) { xlink $src,$dst; }
+  elsif(-f $src) { xcopy $src,$dst; }}
+
+# link source directory to destination point
+sub dlink {
+  my $src = $_[0];
+  my $dst = $_[1];
+  my $msg;
+
+  if($_[2]) { $msg = $_[0]; $src = $_[1]; $dst = $_[2]; }
+  my $srcx = $src; $srcx = "\"$srcx\"" if $srcx =~ / /;
+  my $dstx = $dst; $dstx = "\"$dstx\"" if $dstx =~ / /;
+  my $dstl = readlink $dst if -l $dst;
+  dprint "dlink","ln -s $srcx $dstx" if $DEBUG;
+  if(not $dstl eq $src) {
+    cmd "$msg","rm $dstx" if -e $dst;
+    cmd "$msg","ln -s $srcx $dstx"; }}
+
+# -------------------------------------------------------------------- TO INDEX
+
+# index file (or link) into directory
+sub xndex {
+  my $src = $_[0]; my $srcx = $src; $srcx = "\"$srcx\"" if $srcx =~ / /;
+  my $dst = $_[1]; my $dstx = $dst; $dstx = "\"$dstx\"" if $dstx =~ / /;
+
+  my $dstl = readlink $dst if -l $dst;
+  my $srcl = readlink $src if -l $src;
+  my $dstdir = $dst; $dstdir =~ s/\/[^\/]*$//;
+  my $dstdirx = $dstdir; $dstdirx = "\"$dstdirx\"" if $dstdirx =~ / /;
+  my $srct = $src; $srct = $srcl if -l $src; # test-src = src or link to it
+
+  if($DEBUG) {
+    if(-l $src) { dprint "xndex","cp -d $srcx $dstdirx"; }
+    else {        dprint "xndex","ln -s $srcx $dstx"; }}
+
+  if((not $dstl eq $srct) or (not -l $dst)) {
+    cmd "index","rm $dstx" if -e $dst;
+    makedir "index",$dstdirx;
+    if(-l $src) { cmd "index","cp -d $srcx $dstdirx"; }
+    else {        cmd "index","ln -s $srcx $dstx"; }}}
+
+# higher-level subdirectory-avare index:
+# indexes files from given directory to given directory
+sub diridx {
+  my $from = $_[0];
+  my $to = $_[1];
+  (my $dirs,my $files) = dir2array_rec(".",$from);
+  for my $f (@{$files}) {
+    xndex "$from/$f","$to/$f"; }}
+
+# higher-level plain directory index
+sub plainidx {
+  my $from = $_[0];
+  my $to = $_[1];
+  for my $f (dir2array "$from") {
+    xndex "$from/".basename($f),"$to/".basename($f); }}
+
+# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------ HELP
+
+$HELP_MAIN=<<EOF;
+
+NAME
+    makeinstall - automatic make install
+
+USAGE
+    makeinstall [OPTIONS] FILES
+
+DESCRIPTION
+    Install FILES into operating system.  Automatically decide appropriate
+    directory in the system to install files to.
+
+    The type of input file is first guessed from the filename: the type of
+    "bin/xyz" will be "bin".  Then other auto-detections are tried.
+
+OPTIONS
+        -h  This help.
+        -v  Verbose.
+        -d  Debug.
+        -n  Dummy - print commands, but don\'t execute them CK((will fail)
+            CK(on chained commands - like copy to nonexisting directory\\).)
+        -e  Explore mode - no actions, only context detection.
+        -f  Forced noninteractive mode - proceed without questions.
+        -q  Quiet mode - no messages, no questions.
+
+ -p PREFIX  Set the installation PREFIX.
+  -c CLASS  Preset the CLASS for all inputs.
+  -u CLASS  Preset the CLASS only for unknown-class inputs.
+-dir CLASS  Print full installation directory path for given CLASS.
+       -cc  Print installation config info in c header format.
+
+MODES
+    Following modes of installation are recognized from the PREFIX:
+
+    CC(usr)  This standard mode is active for any CW(/usr) type prefix.
+    CC(dir)  The CW(/opt) style installation for the CW(/opt) prefix.
+    CC(map)  The CW(/map) style installation for the CW(/map) prefix.
+
+    First the CW(map) mode is tried, then the CW(/opt) prefix, then the
+    CW(usr) mode.  The last instance is install into CW(/tmp) directory.
+
+CLASSES
+    Following classes of installation subdirs are recognized from
+    the filenames:
+
+    CC(bin)   Standard CW(bin/) directory.
+    CC(lib)   Standard CW(lib/) directory.
+    CC(inc)   Standard CW(include/) directory (CW(inc/) in the CW(map) mode).
+    CC(man)   Standard CW(man/) directory.
+    CC(dat)   The CW(share/) directory in CW(usr) mode, CW(dat/) in other modes.
+    CC(etc)   The CW(etc/) directory.
+    CC(emacs) Emacs-lisp CW(emacs/) directory.
+    CC(pl)    The CW(pl/) perl libraries.
+
+MAKEFILE USAGE
+    CW(install: all)
+    CW(        makeinstall -f \$(BINARIES\\))
+
+EOF
+
+# ------------------------------------------------------------------------ ARGV
+for(@ARGV) { if($_ eq "-h") { printhelp($HELP_MAIN); exit 0; }}
+for(@ARGV) { if($_ eq "-v") { $_=""; $VERBOSE=1; last; }}
+for(@ARGV) { if($_ eq "-d") { $_=""; $VERBOSE=1; $DEBUG=1; last; }}
+for(@ARGV) { if($_ eq "-f") { $_=""; $FORCE=1; last; }}
+for(@ARGV) { if($_ eq "-e") { $_=""; $EXPLORE=1; last; }}
+for(@ARGV) { if($_ eq "-q") { $_=""; $QUIET=1; last; }}
+for(@ARGV) { if($_ eq "-n") { $_=""; $DUMMY=1; last; }}
+for(@ARGV) { if($_ eq "-cc") { $_=""; $CCONF=1; last; }}
+
+xprintnl;
+xprint "",$CD_."dummy run" if $DUMMY;
+
+for my $i (0..$#ARGV-1) {
+  next if $ARGV[$i] ne "-p" or $ARGV[$i+1] eq "";
+  $PREFIX = $ARGV[$i+1]; $ARGV[$i]=""; $ARGV[$i+1]=""; last; }
+
+for my $i (0..$#ARGV-1) {
+  next if $ARGV[$i] ne "-t" or $ARGV[$i+1] eq "";
+  $CLASS = $ARGV[$i+1]; $ARGV[$i]=""; $ARGV[$i+1]=""; last; }
+
+for my $i (0..$#ARGV-1) {
+  next if $ARGV[$i] ne "-u" or $ARGV[$i+1] eq "";
+  $CLASS2 = $ARGV[$i+1]; $ARGV[$i]=""; $ARGV[$i+1]=""; last; }
+
+for my $i (0..$#ARGV-1) {
+  next if $ARGV[$i] ne "-dir" or $ARGV[$i+1] eq "";
+  $PRINTDIR = $ARGV[$i+1]; $ARGV[$i]=""; $ARGV[$i+1]=""; last; }
+
+# everything left are files to install
+my $i = 1;
+our %FILES;
+for $_ (@ARGV) {
+  next if $_ eq "";
+  $FILES{$_}{i} = $i++;
+  $_ = ""; }
+
+# inputs debug message
+if($DEBUG) {
+  dhprint "inputs";
+  for $k (keys %FILES) { sprint $CG_.$k.$CD_." "; }
+  sprint "\n"; }
+
+# ----------------------------------------------------------------- AUTO PREFIX
+
+sub tryprefix {
+  my $prefix = shift;
+
+  if(-w $prefix) {
+    dprint "found prefix",$prefix if $VERBOSE;
+    return $prefix; }
+
+  dprint "bad prefix",$prefix if $DEBUG;
+  return; }
+
+dprint "prefix",$PREFIX if $DEBUG and $PREFIX;
+
+$PREFIX = tryprefix "/map"	 if not $PREFIX;
+$PREFIX = tryprefix "/opt"	 if not $PREFIX;
+$PREFIX = tryprefix "/usr/local" if not $PREFIX;
+$PREFIX = tryprefix "/usr"	 if not $PREFIX;
+$PREFIX = tryprefix "/tmp"	 if not $PREFIX;
+
+# ------------------------------------------------------------------- AUTO MODE
+
+$MODE = "map" if $PREFIX =~ /^\/map/;
+$MODE = "usr" if $PREFIX =~ /^\/usr/;
+$MODE = "dir" if $PREFIX =~ /^\/opt/;
+$MODE = "dir" if $PREFIX =~ /^\/tmp/;
+$MODE = "dir" if not $MODE;
+
+dprint "mode",$MODE if $VERBOSE;
+
+# ------------------------------------------------------------------ GETVERSION
+
+$PACKAGE = fromcmd "getversion -pkg";
+$VERSION = fromcmd "getversion -ver";
+$PROJECT = fromcmd "getversion -prj";
+$PKGNAME = fromcmd "getversion -pnm";
+
+if($VERBOSE) {
+  dprint "package",$PACKAGE;
+  dprint "version",$VERSION;
+  dprint "project",$PROJECT;
+  dprint "pkgname",$PKGNAME; }
+
+# ---------------------------------------------------------- MODE SPECIFIC DIRS
+
+if($MODE eq "map") {
+  $BOX="/box/$PROJECT/$PKGNAME";
+  $MAP="/map/$PACKAGE";
+  xprint "box directory",$BOX;
+  xprint "map directory",$MAP; }
+
+if($MODE eq "dir") {
+  $OPT="$PREFIX/$PACKAGE";
+  xprint "opt directory",$OPT; }
+
+if($MODE eq "usr") {
+  $USR=$PREFIX;
+  xprint "usr directory",$USR; }
+
+# -------------------------------------------------------------- MAIN DIRECTORY
+
+$DIR = "/tmp";
+$DIR = $BOX if $MODE eq "map";
+$DIR = $MAP if $MODE eq "map" and $PRINTDIR;	# use $MAP for -dir printout
+$DIR = $MAP if $MODE eq "map" and $CCONF;	# use $MAP for -cc too
+$DIR = $OPT if $MODE eq "dir";
+$DIR = $USR if $MODE eq "usr";
+
+dprint "install directory",$DIR if $VERBOSE;
+
+# ----------------------------------------------------------------- DIR CLASSES
+our %DIR;
+
+$DIR{bin} = "$DIR/bin";
+$DIR{lib} = "$DIR/lib";
+$DIR{inc} = "$DIR/include/$PACKAGE";
+$DIR{inc} = "$DIR/inc/$PACKAGE" if $MODE eq "map";
+$DIR{man} = "$DIR/man";
+$DIR{dat} = "$DIR/dat";
+$DIR{dat} = "$DIR/share/$PACKAGE" if $MODE eq "usr";
+$DIR{etc} = "$DIR/etc";
+$DIR{emacs} = "$DIR/emacs";
+
+$DIR{pl} = "$DIR/pl";
+
+# ----------------------------------------------------------------- -dir OUTPUT
+
+our @CLASSES = ("bin","bim","lib","inc","man","dat","etc","emacs");
+push @CLASSES, ("pl"); 
+
+for my $class (@CLASSES) {
+  next if not $class eq $PRINTDIR;
+  xprint "$class directory",$DIR{$class};
+  xprintnl();
+  print "$DIR{$class}\n"; }
+
+if($PRINTDIR and not inar \@CLASSES,$PRINTDIR) {
+  eprint "Unknown installation directory type: $PRINTDIR.";
+  xprintnl(); }
+
+exit 0 if $PRINTDIR;
+
+# ------------------------------------------------------------------ -cc OUTPUT
+
+if($CCONF) {
+  xprintnl();
+  print "#define BINDIR \"$DIR{bin}\"\n";
+  print "#define LIBDIR \"$DIR{lib}\"\n";
+  print "#define INCDIR \"$DIR{inc}\"\n";
+  print "#define MANDIR \"$DIR{man}\"\n";
+  print "#define DATDIR \"$DIR{dat}\"\n";
+  print "#define ETCDIR \"$DIR{etc}\"\n";
+# print "#define EMACSDIR \"$DIR{emacs}\"\n";
+  exit(0); }
+
+# ======================================================================= PATHS
+
+for $k (keys %FILES) {
+  my $file = $k;
+
+  # unloop dirs
+  while(not -f $file and $file=~/\//) {
+    $file = $2 if $file =~ /^(.*?)\/(.*)$/; }
+
+  if(-f $file) {
+    dprint "file $FILES{$k}{i}",$file if $DEBUG;
+    $FILES{$k}{path}=$file; }
+  else {
+    eprint "Cannot find file: $k"; exit 1; }}
+
+# --------------------------------------------------------------------- CLASSES
+
+if($CLASS and not inar \@CLASSES,$CLASS) {
+  xprint "wrong class",$CLASS;
+  undef $CLASS; }
+
+if($CLASS2 and not inar \@CLASSES,$CLASS2) {
+  xprint "wrong type",$CLASS2;
+  undef $CLASS2; }
+
+# 1. preset for all
+if(defined $CLASS) {
+  $FILES{$_}{class} = $CLASS for keys %FILES; }
+
+# 2. check the prefix
+for my $f (keys %FILES) {
+  next if defined $FILES{$f}{class}; # already done
+  for my $c (@CLASSES) {
+    $FILES{$f}{class} = $c if $f =~ /(^|[^a-z])$c\//; }}
+
+# 3. autodetect
+for my $f (keys %FILES) {
+  next if defined $FILES{$f}{class}; # already done
+
+  # guess it's bin if it is executable
+  if(-x $FILES{$f}{path}) {
+    $FILES{$f}{class} = "bin";
+    dprint "guess $FILES{$f}{class}",$f if $DEBUG; }
+
+  # manual pages
+  elsif($FILES{$f}{path} =~ /\.[0-9]$/) {
+    $FILES{$f}{class} = "man";
+    dprint "guess $FILES{$f}{class}",$f if $DEBUG; }
+
+  # .h header files
+  elsif($FILES{$f}{path} =~ /\.h$/) {
+    $FILES{$f}{class} = "inc";
+    dprint "guess $FILES{$f}{class}",$f if $DEBUG; }
+
+  # emacs macros
+  elsif($FILES{$f}->{path}=~/\.el$/) {
+    $FILES{$f}{class} = "emacs";
+    dprint "guess $FILES{$f}{class}",$f if $DEBUG; }
+
+  # perl
+  elsif($FILES{$f}{path} =~ /\.pl$/) {
+    $FILES{$f}{class} = "pl";
+    dprint "guess $FILES{$f}{class}",$f if $DEBUG; }}
+
+# 4. preset for unknown
+if(defined $CLASS2) {
+  for my $f (keys %FILES) {
+    next if defined $FILES{$f}{class}; # already done
+    $FILES{$f}{class} = $CLASS2; }}
+
+# group files by class
+undef %CLASS;
+for my $f (keys %FILES) {
+  if(defined $FILES{$f}{class}) {
+    push @{$CLASS{$FILES{$f}{class}}},$FILES{$f}{path}; }
+  else {
+    push @{$CLASS{unknown}},$FILES{$f}{path}; }}
+
+# announce
+for my $c (sort keys %CLASS) {
+  hprint "$c files";
+  for my $f (@{$CLASS{$c}}) { sprint $CG_.$f.$CD_." "; }
+  sprint "\n"; }
+
+# -------------------------------------------------------------------- QUESTION
+
+if($EXPLORE) { xprintnl(); exit 0; }
+
+sub answer_yes {
+  my $question = shift;
+  sprint sprintf "%*s: ",$HDRLEN,$question;
+
+  # get answer
+  my $key;
+  sprint $CG_;
+  system "stty",'-icanon','eol',"\001";
+  $key = getc(STDIN) while not $key =~ /[YyNnQq\n]/;
+  system "stty",'icanon','eol','^@';
+  sprint $CD_;
+  sprint "\n" if $key ne "\n";
+
+  # yes/no
+  return 1 if $key =~ /[yY\n]/;
+  return 0; }
+
+if(not $FORCE and not $QUIET and not answer_yes("proceed? Y/n")) {
+  eprint("did nothing, bye...");
+  xprintnl();
+  exit 0; }
+
+# ------------------------------------------------------------------ MULTI-COPY
+
+# copy files of given class into given directory
+sub cpto {
+  my $class = shift;
+  my   $dir = shift;
+  xlncp $_,"$dir/$_" for @{$CLASS{$class}}; }
+
+# expects no subdirs = files from subdirs will be copied as basenames only
+sub cptob {
+  my $class = shift;
+  my   $dir = shift;
+  xlncp $_,"$dir/".basename($_) for @{$CLASS{$class}}; }
+
+# only copy man files into given directory
+sub cpmanto {
+  for my $f (@{$CLASS{man}}) {
+    my $x = 1;
+       $x = $1 if $f =~ /\.([0-9])$/;
+    xlncp $f,"$_[0]/man$x/$f"; }}
+
+# # only copy dat files into given directory
+# sub cpdatto {
+#   for my $f (@{$CLASS{dat}}) {
+#     (my $x=$f) =~ s/^dat\///;
+#     xlncp $f,"$BOX/dat/$x"; }}
+#
+# # only copy etc files into given directory
+# sub cpetcto {
+#   for my $f (@{$CLASS{etc}}) {
+#     (my $x=$f) =~ s/^etc\///;
+#     xlncp $f,"$BOX/etc/$x"; }}
+#
+# # only copy emacs files into given directory
+# sub cpemacsto {
+#   for my $f (@{$CLASS{emacs}}) {
+#     (my $x=$f) =~ s/^emacs\///;
+#     xlncp $f,"$BOX/emacs/$f"; }}
+
+# ------------------------------------------------------------------ INSTALLERS
+
+sub inst_bin {
+  cptob "bin",$DIR{bin};
+  plainidx "$MAP/bin","/bin" if $MODE eq "map"; }
+
+sub inst_bim {
+  cptob "bim",$DIR{bim}; }
+
+sub inst_lib {
+  cptob "lib",$DIR{lib};
+  plainidx "$MAP/lib","/lib" if $MODE eq "map"; }
+
+sub inst_inc {
+  cpto "inc",$DIR{inc};
+  diridx "$MAP/inc/$PACKAGE","/inc/$PACKAGE" if $MODE eq "map"; }
+
+sub inst_man {
+  cpmanto $DIR{man};
+  diridx "$MAP/man","/doc/man" if $MODE eq "map"; }
+
+sub inst_dat {
+  cpto "dat",$DIR{dat}; }
+
+sub inst_etc {
+  cpto "etc",$DIR{etc}; }
+
+sub inst_emacs {
+  cpto "emacs",$DIR{emacs};
+  diridx "$MAP/emacs","/dat/emacs" if $MODE eq "map"; }
+
+sub inst_pl {
+  cpto "pl",$DIR{pl};
+  diridx "$MAP/pl","/dat/pl" if $MODE eq "map"; }
+
+# --------------------------------------------------------------------- INSTALL
+
+if($MODE eq "map") {
+  makedir "make box","$BOX";
+  dlink "link map","$BOX","$MAP"; }
+
+inst_bin   if $CLASS{bin};
+inst_bim   if $CLASS{bim};
+inst_lib   if $CLASS{lib};
+inst_inc   if $CLASS{inc};
+inst_man   if $CLASS{man};
+inst_dat   if $CLASS{dat};
+inst_etc   if $CLASS{etc};
+inst_emacs if $CLASS{emacs};
+inst_pl	   if $CLASS{pl};
+
+xprintnl();
+
+# -----------------------------------------------------------------------------

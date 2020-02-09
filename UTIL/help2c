@@ -1,0 +1,99 @@
+#!/usr/bin/perl
+
+$input = `cat $ARGV[0]`;
+$conf  = `cat CONFIG.h`;
+
+# ------------------------------------------------------------------------------------------------
+
+# $Nin = $1 if $conf =~ /\#\h*define\h+Nin\h+([0-9]+)/;
+# $Nh1 = $1 if $conf =~ /\#\h*define\h+Nh1\h+([0-9]+)/;
+# $Nou = $1 if $conf =~ /\#\h*define\h+Nou\h+([0-9]+)/;
+
+# $TOPOLOGY = "$Nin-$Nh1-$Nou";
+
+# ------------------------------------------------------------------------------------------------
+
+$GAMMA = $1 if `grep -h 'Gamma =' *.c` =~ /Gamma\h*=\h*([0-9\.]+)\h*;/;
+$LOGSTEP = $1 if `grep -h 'Logstep =' *.c` =~ /Logstep\h*=\h*([0-9\.]+)\h*;/;
+# $EPOCHS = $1 if `grep -h 'Epochs =' *.c` =~ /Epochs\h*=\h*([0-9\.]+)\h*;/;
+
+# ------------------------------------------------------------------------------------------------
+
+#$input =~ s/__TOPOLOGY__/$TOPOLOGY/g;
+#$input =~ s/__TOPOLOGY__/"Topology"/g;
+$input =~ s/__GAMMA__/$GAMMA/g;
+$input =~ s/__LOGSTEP__/$LOGSTEP/g;
+#$input =~ s/__EPOCHS__/$EPOCHS/g;
+
+# ------------------------------------------------------------------------------------------------
+
+$PACKAGE  = `(cd ..; getversion -pkg)`;
+$VERSION  = `(cd ..; getversion -ver)`;
+$COPYLEFT = `(cd ..; getversion -cpy)`;
+$MKDATE	  = `date '+%Y%m%d.%H%M'`;
+$MKHOST   = `hostname`;
+$SUBVERSION = `(cd ..; mkdist -sub)`;
+
+chomp $PACKAGE;
+chomp $VERSION;
+chomp $COPYLEFT;
+chomp $MKDATE;
+chomp $MKHOST;
+chomp $SUBVERSION;
+
+# ------------------------------------------------------------------------------------------------
+
+$CR_="\033[31m"; # color red
+$CG_="\033[32m"; # color green
+$CM_="\033[35m"; # color magenta
+$CC_="\033[36m"; # color cyan
+$CW_="\033[37m"; # color white
+$CK_="\033[90m"; # color black
+$CD_="\033[0m";  # color default
+
+sub printhelp {
+  my $help = $_[0];
+
+  # commented-out
+  $help =~ s/(\n\#.*)*\n/\n/g;
+
+  if($SUBVERSION ne "none") {
+    $SUB = $SUBVERSION;
+    $BLT = " $CK_(built $MKDATE on $MKHOST)$CD_"; }
+
+  $help .= "VERSION\n";
+  $help .= "    $PACKAGE-$VERSION$SUB $COPYLEFT$BLT\n\n";
+
+  # CC(text)
+  my %REX; my $i=0; $REX{$i++} = $3 while $help =~ s/([^A-Z0-9])(C[CWD])\((.+?)\)/${1}__c$2${i}__/;
+
+  # TODO: use push array to avoid being overwritten later
+  $help =~ s/(\n[ ]*)(-[a-zA-Z0-9]+(\[?[ =][A-Z]{2,}(x[A-Z]{2,})?\]?)?)([ \t])/$1$CC_$2$CD_$5/g;
+
+  $help =~ s/\[([+-])?([A-Z]+)\]/\[$1$CC_$2$CD_\]/g;
+  $help =~ s/(\n|[ \t])(([A-Z_\/-]+[ ]?){4,})/$1$CC_$2$CD_/g;
+
+  # CC(text)
+  $help =~ s/__cCC([0-9]+)__/$CC_$REX{$1}$CD_/g;
+  $help =~ s/__cCW([0-9]+)__/$CW_$REX{$1}$CD_/g;
+  $help =~ s/__cCD([0-9]+)__/$CD_$REX{$1}$CD_/g;
+
+  return $help; }
+
+$input2 = printhelp $input;
+
+# ------------------------------------------------------------------------------------------------
+
+
+$out = "";
+foreach(split /\n/,$input2) {
+  $out .= "\"$_\\n\"\n";
+}
+
+$out .= "\"\\n\"";
+
+#print "# ifndef HELP_H\n# define HELP_H\n\n";
+print "char *Help = $out;\n";
+#print "# endif\n";
+
+# ------------------------------------------------------------------------------------------------

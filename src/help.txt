@@ -1,0 +1,70 @@
+
+NAME
+    nntrain - this one trains CC(__TOPOLOGY__) neural networks
+
+USAGE
+    nntrain [OPTIONS] DATAFILES...
+
+DESCRIPTION
+    Nntrain loads data files and trains the neural network on the training
+    set, while simultaneously evaluating performance on testing sets in
+    CC(log-scheduled) time steps.
+
+    Data files should be in the CC(SSV) form.  First inputs columns, then
+    outputs columns, then ignored data until the end of line.  Hash
+    delimited comments are ignored.  Filenames are either train.dat,
+    test.dat, test1.dat and test2.dat, or any names with role specified
+    by the -train -test options.
+
+    Training output is saved into the CC(Log) directory.
+
+OPTIONS
+             -h  This help.
+             -v  Extra verbose mode.
+             -q  Quiet recompilation.
+            -np  No progress report.
+
+        -n NAME  Sets the experiment name for logdir and journal.log.
+                 Patterns CC(%d),CC(%t) are formatted to datetime and topology.
+                 If no CD(NAME) is specified the datetime is used.
+         -train  All data files after this switch will be a training set.
+          -test  Following files are testing set (alias CC(-test1)).
+         -test2  Following files are alternative testing set.
+
+         -e NUM  The number of training epochs/cycles (default no limit),
+      -secs NUM  or the desired length of the training in seconds,
+      -pats NUM  or the desired number of patterns to train.  Whichewer will
+                 happen first.  Decimal values for epochs or secs are accepted.
+
+         -g NUM  Learning rate, gamma (default __GAMMA__).
+    -t TOPOLOGY  Topology (current is __TOPOLOGY__).
+
+         -p NUM  The number of testing threads running in parallel.
+         -s NUM  Logarithmic scheduler step multiplier (default __LOGSTEP__).
+                 Inputs 20% or 0.2 are converted to the 1.2 multiplier.
+            -dt  Deterministic tests order (default is random order).
+
+            -E0  No errors logging.
+            -E1  Default, aggregated CD(MAE) and its per-pat min/max log.
+            -E2  Advanced errors log with MSE, distance, per output MAEs
+                 and complete outputs logs.
+            -E3  Median-type errors.
+            -W0  Don't log weights.
+            -C1  Log credits, simple input weights aggregates.
+
+TOPOLOGY
+        CC(10-30-3)  10 inputs, 30 hiden neurons, 3 outputs.
+      CC(4-2sigm-3)  4 inputs, 2 sigmoidal hidden, 3 (default sigm.) outputs.
+   CC(5-2r-3s-4r-6)  5 inputs, 2 relu, 3 sigm., 4 relu, 6 default sigm.
+
+STOP
+  CC(single Ctrl-C)  Finish current error evaluations and stop.
+  CC(double Ctrl-C)  Close all error evaluations and stop.
+                 Queued, but not started evaluations will be lost anyway.
+
+EXAMPLE
+    CW(nntrain train.dat -g 0.1 -name 1st_experiment)
+
+SEE ALSO
+    CW(erplot -h)
+
