@@ -24,7 +24,7 @@ clean:
 	make -C src clean
 
 README.md: src/help.txt
-	$< -h | man2md > $@
+	src/nntrain -h | man2md > $@
 
 -include ~/.github/Makefile.git
 

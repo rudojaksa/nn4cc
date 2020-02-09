@@ -1,5 +1,5 @@
 ### NAME
-nntrain - this one trains 146-26-3 neural networks
+nntrain - nn4cc training app
 
 ### USAGE
       nntrain [OPTIONS] DATAFILES...
@@ -7,15 +7,15 @@ nntrain - this one trains 146-26-3 neural networks
 ### DESCRIPTION
 Nntrain loads data files and trains the neural network on the training
 set, while simultaneously evaluating performance on testing sets in
-log-scheduled time steps.
+log-scheduled time steps.  Now compiled for 146-26-3 neural networks.
 
 Data files should be in the SSV form.  First inputs columns, then
 outputs columns, then ignored data until the end of line.  Hash
 delimited comments are ignored.  Filenames are either train.dat,
 test.dat, test1.dat and test2.dat, or any names with role specified
-by the -train -test options.
+by the -train and -test options.
 
-Training output is saved into the Log directory.
+Training output is saved into the ./Log/ directory.
 
 ### OPTIONS
                -h  This help.
@@ -62,11 +62,11 @@ Training output is saved into the Log directory.
                    Queued, but not started evaluations will be lost anyway.
 
 ### EXAMPLE
-      nntrain train.dat -g 0.1 -name 1st_experiment
+      nntrain -g 0.1 -name 1st_experiment train.dat
 
 ### SEE ALSO
 erplot -h
 
 ### VERSION
-nn4cc-0.1v (c) R.Jaksa 2019, GPLv3 (built 20200210.0002 on brix)
+nn4cc-0.1v (c) R.Jaksa 2019, GPLv3 (built 20200210.0029 on brix)
 

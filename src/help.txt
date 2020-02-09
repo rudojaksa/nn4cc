@@ -1,6 +1,6 @@
 
 NAME
-    nntrain - this one trains CC(__TOPOLOGY__) neural networks
+    nntrain - nn4cc training app
 
 USAGE
     nntrain [OPTIONS] DATAFILES...
@@ -8,15 +8,15 @@ USAGE
 DESCRIPTION
     Nntrain loads data files and trains the neural network on the training
     set, while simultaneously evaluating performance on testing sets in
-    CC(log-scheduled) time steps.
+    CC(log-scheduled) time steps.  Now compiled for CC(__TOPOLOGY__) neural networks.
 
     Data files should be in the CC(SSV) form.  First inputs columns, then
     outputs columns, then ignored data until the end of line.  Hash
-    delimited comments are ignored.  Filenames are either train.dat,
-    test.dat, test1.dat and test2.dat, or any names with role specified
-    by the -train -test options.
+    delimited comments are ignored.  Filenames are either CC(train.dat),
+    CC(test.dat), CC(test1.dat) and CC(test2.dat), or any names with role specified
+    by the CC(-train) and CC(-test) options.
 
-    Training output is saved into the CC(Log) directory.
+    Training output is saved into the CC(./Log/) directory.
 
 OPTIONS
              -h  This help.
@@ -63,7 +63,7 @@ STOP
                  Queued, but not started evaluations will be lost anyway.
 
 EXAMPLE
-    CW(nntrain train.dat -g 0.1 -name 1st_experiment)
+    CW(nntrain -g 0.1 -name 1st_experiment train.dat)
 
 SEE ALSO
     CW(erplot -h)
