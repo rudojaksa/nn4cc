@@ -1,0 +1,13 @@
+# https://github.com/github/linguist/#generated-code
+
+*.pl linguist-language=Perl
+*.c linguist-language=C
+
+.git*     linguist-vendored
+.gr       linguist-vendored
+UTIL/*    linguist-vendored
+*.md      linguist-documentation
+CONFIG.pl linguist-generated
+VERSION.h linguist-generated
+help.c    linguist-generated
+errors.pdf linguist-generated
