@@ -63,7 +63,7 @@ STOP
                  Queued, but not started evaluations will be lost anyway.
 
 EXAMPLE
-    CW(nntrain -g 0.1 -name 1st_experiment train.dat)
+    CW(nntrain -secs 5 -t 146-26-3 train.dat)
 
 SEE ALSO
     CW(erplot -h)
