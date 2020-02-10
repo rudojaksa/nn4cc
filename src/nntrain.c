@@ -8,10 +8,10 @@ int main(int argc, char *argv[]) {
   mlp_t *mlp = mlp_rndinit(-0.1,0.1,TIMESEED);	// initialize the network
 
   sch_t *sch = scheduler(data);			// prepare the log scheduler
-  lognow(mlp,sch);				// errors before training
+  lognow(mlp,sch);				// log 0-th step errors before the training
 
-  while(nextpat(mlp,data,sch)) {		// load next pattern from data to network, or end
+  while(nextpat(mlp,data,sch)) {		// load next pattern from data to network
     backprop(mlp,Gamma);			// train the network
     schedule(mlp,sch); }			// scheduled error progress log
-  logend(sch); }				// print footer and statistics
+  logend(sch); }				// print the footer and statistics
 
