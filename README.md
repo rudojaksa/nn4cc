@@ -64,9 +64,6 @@ Training output is saved into the ./Log/ directory.
 ### EXAMPLE
       nntrain -secs 5 -t 146-26-3 train.dat
 
-### SEE ALSO
-erplot -h
-
 ### VERSION
 nn4cc-0.2 (c) R.Jaksa 2019, GPLv3
 

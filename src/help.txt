@@ -65,6 +65,3 @@ STOP
 EXAMPLE
     CW(nntrain -secs 5 -t 146-26-3 train.dat)
 
-SEE ALSO
-    CW(erplot -h)
-
