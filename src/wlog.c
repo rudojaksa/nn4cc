@@ -26,7 +26,7 @@ void whdr(const char* const dir) {
   fprintf(fp,"\n");
   fclose(fp); }
 
-// local arrays bigger than 100000 are problem, thus we will use malloc
+// local arrays bigger than 1000000 are problem, thus we will use malloc
 # if Nw > 1000000
 #   undef  newlogline
 #   define newlogline(line,length) dynlogline(line,length)
