@@ -2,7 +2,7 @@
 # define CONFIG_H
 
 # define Nin  146	// no. of inputs
-# define Nh1   26	// hidden layer 1
+# define Nh1   12	// hidden layer 1
 # define Nou    3	// no. of outputs
 
 # define Fh1 relu
